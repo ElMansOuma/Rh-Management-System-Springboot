@@ -1,9 +1,8 @@
 package com.example.personnel_management.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.sql.Date;
 
 @Entity
 @Getter
@@ -16,18 +15,17 @@ public class PieceJustificative {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    private TypePiece type;
-
+    @Column(nullable = false)
     private String nom;
-    private String fichier;
-    private Date dateAjout;
 
-    @ManyToOne
+    @Column(nullable = false)
+    private String type; // CIN, DIPLOME, AUTRE
+
+    @Column(nullable = false)
+    private String fichierUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collaborateur_id")
+    @JsonIgnore
     private Collaborateur collaborateur;
-}
-
-enum TypePiece {
-    CIN, DIPLOME, AUTRE
 }

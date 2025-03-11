@@ -76,4 +76,5 @@ public class CollaborateurService {
         }
         collaborateurRepository.deleteById(id);
     }
+
 }
