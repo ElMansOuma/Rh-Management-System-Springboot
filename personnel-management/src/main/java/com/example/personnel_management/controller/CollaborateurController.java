@@ -5,12 +5,13 @@ import com.example.personnel_management.model.Collaborateur;
 import com.example.personnel_management.service.CollaborateurService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/collaborateurs")
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "http://localhost:3000")
 public class CollaborateurController {
 
+    private static final Logger logger = LoggerFactory.getLogger(CollaborateurController.class);
     private final CollaborateurService collaborateurService;
     private final ModelMapper modelMapper;
 
@@ -35,38 +37,63 @@ public class CollaborateurController {
             CollaborateurDTO collaborateurDTO = collaborateurService.getCollaborateurById(id);
             return ResponseEntity.ok(collaborateurDTO);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null); // Retourner 404 si collaborateur non trouvé
+            logger.error("Erreur lors de la récupération du collaborateur id={}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
     }
 
     // Créer un collaborateur
     @PostMapping
-    public ResponseEntity<CollaborateurDTO> createCollaborateur(@RequestBody Collaborateur collaborateur) {
+    public ResponseEntity<?> createCollaborateur(@RequestBody Collaborateur collaborateur) {
         try {
+            logger.info("Tentative de création d'un collaborateur: {}", collaborateur);
+
+            // Validation basique
+            if (collaborateur == null) {
+                logger.error("Erreur: objet collaborateur est null");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("L'objet collaborateur ne peut pas être null");
+            }
+
             Collaborateur savedCollaborateur = collaborateurService.saveCollaborateur(collaborateur);
             CollaborateurDTO collaborateurDTO = modelMapper.map(savedCollaborateur, CollaborateurDTO.class);
-            return ResponseEntity.status(HttpStatus.CREATED).body(collaborateurDTO);  // Retourner 201 (Created)
+
+            logger.info("Collaborateur créé avec succès: id={}", savedCollaborateur.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(collaborateurDTO);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();  // Retourner 400 (Bad Request) en cas d'erreur
+            logger.error("Erreur lors de la création du collaborateur: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Erreur lors de la création du collaborateur: " + e.getMessage());
         }
     }
 
     // Mettre à jour un collaborateur par ID
     @PutMapping("/{id}")
-    public ResponseEntity<Collaborateur> updateCollaborateur(@PathVariable Long id, @RequestBody Collaborateur collaborateur) {
-        Collaborateur updatedCollaborateur = collaborateurService.updateCollaborateur(id, collaborateur);
-        return ResponseEntity.ok(updatedCollaborateur);
+    public ResponseEntity<?> updateCollaborateur(@PathVariable Long id, @RequestBody Collaborateur collaborateur) {
+        try {
+            logger.info("Tentative de mise à jour du collaborateur id={}", id);
+            Collaborateur updatedCollaborateur = collaborateurService.updateCollaborateur(id, collaborateur);
+            logger.info("Collaborateur mis à jour avec succès: id={}", id);
+            return ResponseEntity.ok(updatedCollaborateur);
+        } catch (Exception e) {
+            logger.error("Erreur lors de la mise à jour du collaborateur id={}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Erreur lors de la mise à jour du collaborateur: " + e.getMessage());
+        }
     }
 
     // Supprimer un collaborateur par ID
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteCollaborateur(@PathVariable Long id) {
         try {
+            logger.info("Tentative de suppression du collaborateur id={}", id);
             collaborateurService.deleteCollaborateur(id);
-            return ResponseEntity.ok("Collaborateur supprimé avec succès."); // Retourner 200 avec un message
+            logger.info("Collaborateur supprimé avec succès: id={}", id);
+            return ResponseEntity.ok("Collaborateur supprimé avec succès.");
         } catch (Exception e) {
+            logger.error("Erreur lors de la suppression du collaborateur id={}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erreur lors de la suppression du collaborateur : " + e.getMessage()); // Retourner 500 avec un message d'erreur
+                    .body("Erreur lors de la suppression du collaborateur: " + e.getMessage());
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.example.personnel_management.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +48,8 @@ public class Collaborateur {
     private LocalDate dateEmbauche;
     private String description;
 
-    @OneToMany(mappedBy = "collaborateur", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "collaborateur", fetch = FetchType.LAZY)
     private List<PieceJustificative> piecesJustificatives;
+
+
 }

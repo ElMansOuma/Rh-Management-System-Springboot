@@ -1,12 +1,15 @@
 package com.example.personnel_management.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.*;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -15,17 +18,12 @@ public class PieceJustificative {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String nom;
-
-    @Column(nullable = false)
-    private String type; // CIN, DIPLOME, AUTRE
-
-    @Column(nullable = false)
+    private String type;
     private String fichierUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "collaborateur_id")
-    @JsonIgnore
+    @JsonBackReference
     private Collaborateur collaborateur;
 }

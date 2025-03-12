@@ -37,9 +37,15 @@ public class CollaborateurService {
         return mapToCollaborateurDTO(collaborateur);
     }
 
-    // Méthode de conversion de l'entité Collaborateur en DTO
+    // Récupérer un collaborateur avec ses pièces justificatives par ID
+    public Collaborateur getCollaborateurAvecPieces(Long id) {
+        return collaborateurRepository.findByIdWithPieces(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Collaborateur non trouvé pour l'ID " + id));
+    }
+
+    // Méthode de conversion en DTO
     private CollaborateurDTO mapToCollaborateurDTO(Collaborateur collaborateur) {
-        return modelMapper.map(collaborateur, CollaborateurDTO.class);
+        return modelMapper.map(collaborateur, CollaborateurDTO.class); // Utilise ModelMapper pour convertir
     }
 
     // Créer un collaborateur
@@ -52,6 +58,7 @@ public class CollaborateurService {
         Collaborateur existingCollaborateur = collaborateurRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Collaborateur non trouvé avec l'ID : " + id));
 
+        // Mise à jour des propriétés de l'entité existante
         existingCollaborateur.setNom(collaborateur.getNom());
         existingCollaborateur.setPrenom(collaborateur.getPrenom());
         existingCollaborateur.setCin(collaborateur.getCin());
@@ -75,6 +82,31 @@ public class CollaborateurService {
             throw new ResourceNotFoundException("Collaborateur non trouvé avec l'ID : " + id);
         }
         collaborateurRepository.deleteById(id);
+    }
+
+    // Méthode de mise à jour spécifique avec ses pièces justificatives
+    @Transactional
+    public Collaborateur mettreAJourCollaborateur(Long id, Collaborateur collaborateur) {
+        Collaborateur existant = collaborateurRepository.findByIdWithPieces(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Collaborateur non trouvé pour l'ID " + id));
+
+        // Mise à jour de l'entité avec les nouvelles données
+        existant.setNom(collaborateur.getNom());
+        existant.setPrenom(collaborateur.getPrenom());
+        existant.setCin(collaborateur.getCin());
+        existant.setDateNaissance(collaborateur.getDateNaissance());
+        existant.setLieuNaissance(collaborateur.getLieuNaissance());
+        existant.setAdresseDomicile(collaborateur.getAdresseDomicile());
+        existant.setCnss(collaborateur.getCnss());
+        existant.setOrigine(collaborateur.getOrigine());
+        existant.setNiveauEtude(collaborateur.getNiveauEtude());
+        existant.setSpecialite(collaborateur.getSpecialite());
+        existant.setDateEntretien(collaborateur.getDateEntretien());
+        existant.setDateEmbauche(collaborateur.getDateEmbauche());
+        existant.setDescription(collaborateur.getDescription());
+
+        // Sauvegarde après mise à jour
+        return collaborateurRepository.save(existant);
     }
 
 }
