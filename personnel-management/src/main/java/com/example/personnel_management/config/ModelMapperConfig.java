@@ -17,4 +17,7 @@ public class ModelMapperConfig {
         return modelMapper;
     }
 
+    /** Transformer une entité JPA en DTO (pour l’envoyer au frontend).
+     Transformer un DTO en entité (avant de l’enregistrer dans la base de données).
+     Éviter les erreurs liées à Hibernate en convertissant des structures spécifiques (PersistentBag → List).*/
 }
