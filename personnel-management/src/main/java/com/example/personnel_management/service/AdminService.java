@@ -1,12 +1,12 @@
 package com.example.personnel_management.service;
 
-import com.example.personnel_management.DTO.AuthResponse;
-import com.example.personnel_management.DTO.LoginRequest;
-import com.example.personnel_management.DTO.RegisterRequest;
+import com.example.personnel_management.DTO.AuthAdminResponse;
+import com.example.personnel_management.DTO.LoginAdminRequest;
+import com.example.personnel_management.DTO.RegisterAdminRequest;
 import com.example.personnel_management.config.JwtUtil;
 import com.example.personnel_management.model.Role;
-import com.example.personnel_management.model.User;
-import com.example.personnel_management.repository.UserRepository;
+import com.example.personnel_management.model.Admin;
+import com.example.personnel_management.repository.AdminRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,16 +17,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-public class UserService implements UserDetailsService {
+public class AdminService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+    private final AdminRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
     // Using @Lazy for the AuthenticationManager breaks the circular dependency
-    public UserService(
-            UserRepository userRepository,
+    public AdminService(
+            AdminRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil,
             @Lazy AuthenticationManager authenticationManager) {
@@ -42,12 +42,12 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé avec l'email: " + username));
     }
 
-    public AuthResponse register(RegisterRequest request) {
+    public AuthAdminResponse register(RegisterAdminRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email déjà utilisé");
         }
 
-        User user = User.builder()
+        Admin user = Admin.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -58,7 +58,7 @@ public class UserService implements UserDetailsService {
 
         String token = jwtUtil.generateToken(user);
 
-        return AuthResponse.builder()
+        return AuthAdminResponse.builder()
                 .token(token)
                 .name(user.getName())
                 .email(user.getEmail())
@@ -66,7 +66,7 @@ public class UserService implements UserDetailsService {
                 .build();
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public AuthAdminResponse login(LoginAdminRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -74,12 +74,12 @@ public class UserService implements UserDetailsService {
                 )
         );
 
-        User user = userRepository.findByEmail(request.getEmail())
+        Admin user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));
 
         String token = jwtUtil.generateToken(user);
 
-        return AuthResponse.builder()
+        return AuthAdminResponse.builder()
                 .token(token)
                 .name(user.getName())
                 .email(user.getEmail())

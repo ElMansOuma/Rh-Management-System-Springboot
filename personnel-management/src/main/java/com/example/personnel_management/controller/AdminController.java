@@ -1,7 +1,7 @@
 package com.example.personnel_management.controller;
 
-import com.example.personnel_management.model.User;
-import com.example.personnel_management.repository.UserRepository;
+import com.example.personnel_management.model.Admin;
+import com.example.personnel_management.repository.AdminRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -18,14 +18,14 @@ import java.util.Map;
 @RequestMapping("/api/users")
 @CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
-public class UserController {
+public class AdminController {
 
-    private final UserRepository userRepository;
+    private final AdminRepository userRepository;
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = (User) authentication.getPrincipal();
+        Admin user = (Admin) authentication.getPrincipal();
 
         Map<String, Object> response = new HashMap<>();
         response.put("id", user.getId());

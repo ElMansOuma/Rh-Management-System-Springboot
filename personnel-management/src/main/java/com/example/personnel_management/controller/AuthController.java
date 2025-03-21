@@ -3,10 +3,10 @@ package com.example.personnel_management.controller;
 
 
 
-import com.example.personnel_management.DTO.AuthResponse;
-import com.example.personnel_management.DTO.LoginRequest;
-import com.example.personnel_management.DTO.RegisterRequest;
-import com.example.personnel_management.service.UserService;
+import com.example.personnel_management.DTO.AuthAdminResponse;
+import com.example.personnel_management.DTO.LoginAdminRequest;
+import com.example.personnel_management.DTO.RegisterAdminRequest;
+import com.example.personnel_management.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,15 +18,15 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
 
-    private final UserService userService;
+    private final AdminService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<AuthAdminResponse> register(@Valid @RequestBody RegisterAdminRequest request) {
         return ResponseEntity.ok(userService.register(request));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<AuthAdminResponse> login(@Valid @RequestBody LoginAdminRequest request) {
         return ResponseEntity.ok(userService.login(request));
     }
 }

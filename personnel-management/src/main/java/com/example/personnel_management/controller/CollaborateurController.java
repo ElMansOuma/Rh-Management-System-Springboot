@@ -2,6 +2,7 @@ package com.example.personnel_management.controller;
 
 import com.example.personnel_management.DTO.CollaborateurDTO;
 import com.example.personnel_management.model.Collaborateur;
+import com.example.personnel_management.repository.CollaborateurRepository;
 import com.example.personnel_management.service.CollaborateurService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -22,6 +23,7 @@ public class CollaborateurController {
     private static final Logger logger = LoggerFactory.getLogger(CollaborateurController.class);
     private final CollaborateurService collaborateurService;
     private final ModelMapper modelMapper;
+    private final CollaborateurRepository collaborateurRepository;
 
     // Récupérer tous les collaborateurs avec DTO
     @GetMapping
@@ -95,5 +97,11 @@ public class CollaborateurController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Erreur lors de la suppression du collaborateur: " + e.getMessage());
         }
+    }
+    @GetMapping("/cin/{cin}")
+    public ResponseEntity<Collaborateur> getCollaborateurByCin(@PathVariable String cin) {
+        return collaborateurRepository.findByCin(cin)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

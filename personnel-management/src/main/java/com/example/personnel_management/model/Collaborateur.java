@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -14,6 +15,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "collaborateur")
+
 public class Collaborateur {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,9 +48,14 @@ public class Collaborateur {
     private LocalDate dateEntretien;
     private LocalDate dateEmbauche;
     private String description;
+    private String password;
 
-    @OneToMany(mappedBy = "collaborateur", fetch = FetchType.LAZY)
-    private List<PieceJustificative> piecesJustificatives;
+    @Column(nullable = false)
+    private boolean resetPassword = true;
 
+    @Column(nullable = false)
+    private boolean active = true;
+    @OneToMany(mappedBy = "collaborateur", fetch = FetchType.EAGER)
+    private Set<PieceJustificative> piecesJustificatives;
 
 }

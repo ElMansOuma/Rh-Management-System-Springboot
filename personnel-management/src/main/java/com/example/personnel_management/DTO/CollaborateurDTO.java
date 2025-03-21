@@ -3,6 +3,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,6 +36,14 @@ public class CollaborateurDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate dateEmbauche;
     private String description;
+    @Column(nullable = false)
+    private String password;
+
+    @Column(nullable = false)
+    private boolean resetPassword = true;
+
+    @Column(nullable = false)
+    private boolean active = true;
     private List<PieceJustificativeDTO> piecesJustificatives;
 
 }
