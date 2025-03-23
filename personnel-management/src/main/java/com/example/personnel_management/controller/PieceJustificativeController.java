@@ -16,11 +16,15 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/pieces-justificatives")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class PieceJustificativeController {
+
+    private static final Logger logger = LoggerFactory.getLogger(PieceJustificativeController.class);
 
     private final PieceJustificativeService pieceJustificativeService;
     private final FileStorageService fileStorageService;
@@ -46,16 +50,26 @@ public class PieceJustificativeController {
         return ResponseEntity.ok(pieceJustificativeService.getById(id));
     }
 
-    @GetMapping("/api/pieces-justificatives/collaborateur/{id}")
+    @GetMapping("/collaborateur/{collaborateurId}")
     public ResponseEntity<List<PieceJustificativeDTO>> getPiecesByCollaborateurId(
             @PathVariable Long collaborateurId,
             @RequestParam(required = false) String statut) {
-        if (statut != null && !statut.isEmpty()) {
-            return ResponseEntity.ok(
-                    pieceJustificativeService.getAllByCollaborateurIdAndStatut(collaborateurId, statut)
-            );
+        logger.info("Requête reçue pour les pièces justificatives du collaborateur: {}", collaborateurId);
+
+        try {
+            List<PieceJustificativeDTO> pieces;
+            if (statut != null && !statut.isEmpty()) {
+                pieces = pieceJustificativeService.getAllByCollaborateurIdAndStatut(collaborateurId, statut);
+                logger.info("Trouvé {} pièces avec statut: {}", pieces.size(), statut);
+            } else {
+                pieces = pieceJustificativeService.getAllByCollaborateurId(collaborateurId);
+                logger.info("Trouvé {} pièces au total", pieces.size());
+            }
+            return ResponseEntity.ok(pieces);
+        } catch (Exception e) {
+            logger.error("Erreur lors de la récupération des pièces: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-        return ResponseEntity.ok(pieceJustificativeService.getAllByCollaborateurId(collaborateurId));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -89,6 +103,7 @@ public class PieceJustificativeController {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(pieceJustificativeService.create(pieceJustificativeDTO));
         } catch (Exception e) {
+            logger.error("Erreur lors de la création de la pièce justificative: ", e);
             throw new RuntimeException("Erreur lors de la création de la pièce justificative: " + e.getMessage());
         }
     }
@@ -129,6 +144,7 @@ public class PieceJustificativeController {
 
             return ResponseEntity.ok(updatedPiece);
         } catch (Exception e) {
+            logger.error("Erreur lors de la mise à jour de la pièce justificative: ", e);
             throw new RuntimeException("Erreur lors de la mise à jour de la pièce justificative: " + e.getMessage());
         }
     }
