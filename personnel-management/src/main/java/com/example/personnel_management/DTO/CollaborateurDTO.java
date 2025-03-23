@@ -1,7 +1,6 @@
 package com.example.personnel_management.DTO;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
-
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
@@ -17,7 +16,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
-
 public class CollaborateurDTO {
     private Long id;
     private String nom;
@@ -45,5 +43,4 @@ public class CollaborateurDTO {
     @Column(nullable = false)
     private boolean active = true;
     private List<PieceJustificativeDTO> piecesJustificatives;
-
 }

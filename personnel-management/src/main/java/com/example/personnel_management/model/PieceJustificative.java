@@ -1,5 +1,6 @@
 package com.example.personnel_management.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -41,5 +42,6 @@ public class PieceJustificative {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collaborateur_id", nullable = false)
+    @JsonBackReference
     private Collaborateur collaborateur;
 }

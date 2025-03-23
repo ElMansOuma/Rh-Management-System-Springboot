@@ -1,5 +1,6 @@
 package com.example.personnel_management.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +18,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Table(name = "collaborateur")
-
 public class Collaborateur {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,8 +56,10 @@ public class Collaborateur {
 
     @Column(nullable = false)
     private boolean active = true;
+
     @OneToMany(mappedBy = "collaborateur", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
+    @JsonIgnoreProperties("collaborateur")
     private List<PieceJustificative> piecesJustificatives = new ArrayList<>();
 
     // Helper method to add a piece justificative
@@ -71,5 +73,4 @@ public class Collaborateur {
         piecesJustificatives.remove(pieceJustificative);
         pieceJustificative.setCollaborateur(null);
     }
-
 }
