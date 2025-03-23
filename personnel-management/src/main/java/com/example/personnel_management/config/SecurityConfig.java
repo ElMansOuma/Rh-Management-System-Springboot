@@ -55,6 +55,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll() // Les URLs d'authentification sont publiques
                         .requestMatchers("/h2-console/**").permitAll() // Console H2 publique
+                        .requestMatchers("/uploads/**").permitAll() // Permettre l'accès aux fichiers téléchargés
+                        .requestMatchers("/api/pieces-justificatives/**").permitAll() // Permettre l'accès à l'endpoint de téléchargement de documents
                         .anyRequest().authenticated() // Toutes les autres requêtes nécessitent une authentification
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Mode sans état (stateless) car nous utilisons JWT
@@ -73,8 +75,17 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Autorise les requêtes depuis le frontend local
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Méthodes HTTP autorisées
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type")); // En-têtes autorisés
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
+        )); // En-têtes autorisés élargis
         configuration.setAllowCredentials(true); // Autorise l'envoi de cookies
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition")); // En-têtes exposés pour téléchargements
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Applique cette configuration à toutes les URLs
         return source;

@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface PieceJustificativeRepository extends JpaRepository<PieceJustificative, Long> {
     List<PieceJustificative> findByCollaborateurId(Long collaborateurId);
+    List<PieceJustificative> findByStatut(String statut);
+    List<PieceJustificative> findByCollaborateurIdAndStatut(Long collaborateurId, String statut);
 }

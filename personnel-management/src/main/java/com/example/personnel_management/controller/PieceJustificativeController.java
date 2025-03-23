@@ -2,99 +2,178 @@ package com.example.personnel_management.controller;
 
 import com.example.personnel_management.DTO.PieceJustificativeDTO;
 import com.example.personnel_management.service.PieceJustificativeService;
-import lombok.RequiredArgsConstructor;
+import com.example.personnel_management.service.FileStorageService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/pieces-justificatives")
-@RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3000")
 public class PieceJustificativeController {
 
     private final PieceJustificativeService pieceJustificativeService;
+    private final FileStorageService fileStorageService;
 
-    // Récupérer toutes les pièces justificatives d'un collaborateur
-    @GetMapping("/collaborateur/{collaborateurId}")
-    public ResponseEntity<List<PieceJustificativeDTO>> getPiecesByCollaborateur(@PathVariable Long collaborateurId) {
-        List<PieceJustificativeDTO> pieces = pieceJustificativeService.getPiecesByCollaborateur(collaborateurId);
-        return ResponseEntity.ok(pieces);
+    @Autowired
+    public PieceJustificativeController(PieceJustificativeService pieceJustificativeService,
+                                        FileStorageService fileStorageService) {
+        this.pieceJustificativeService = pieceJustificativeService;
+        this.fileStorageService = fileStorageService;
     }
 
-    // Ajouter une pièce justificative
-    @PostMapping("/collaborateur/{collaborateurId}")
-    public ResponseEntity<PieceJustificativeDTO> addPieceJustificative(
+    @GetMapping
+    public ResponseEntity<List<PieceJustificativeDTO>> getAllPiecesJustificatives(
+            @RequestParam(required = false) String statut) {
+        if (statut != null && !statut.isEmpty()) {
+            return ResponseEntity.ok(pieceJustificativeService.getAllByStatut(statut));
+        }
+        return ResponseEntity.ok(pieceJustificativeService.getAll());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PieceJustificativeDTO> getPieceJustificativeById(@PathVariable Long id) {
+        return ResponseEntity.ok(pieceJustificativeService.getById(id));
+    }
+
+    @GetMapping("/api/pieces-justificatives/collaborateur/{id}")
+    public ResponseEntity<List<PieceJustificativeDTO>> getPiecesByCollaborateurId(
             @PathVariable Long collaborateurId,
+            @RequestParam(required = false) String statut) {
+        if (statut != null && !statut.isEmpty()) {
+            return ResponseEntity.ok(
+                    pieceJustificativeService.getAllByCollaborateurIdAndStatut(collaborateurId, statut)
+            );
+        }
+        return ResponseEntity.ok(pieceJustificativeService.getAllByCollaborateurId(collaborateurId));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<PieceJustificativeDTO> createPieceJustificative(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("nom") String nom,
             @RequestParam("type") String type,
-            @RequestParam("file") MultipartFile file) {
-        try {
-            PieceJustificativeDTO pieceDTO = pieceJustificativeService.addPieceJustificative(collaborateurId, type, file);
-            return ResponseEntity.status(HttpStatus.CREATED).body(pieceDTO);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
-    // Ajouter plusieurs pièces justificatives en une seule requête
-    @PostMapping("/batch/{collaborateurId}")
-    public ResponseEntity<List<PieceJustificativeDTO>> addMultiplePieces(
-            @PathVariable Long collaborateurId,
-            @RequestParam("files") List<MultipartFile> files,
-            @RequestParam("types") List<String> types) {
+            @RequestParam("collaborateurId") Long collaborateurId,
+            @RequestParam(value = "description", required = false) String description) {
 
         try {
-            if (files.size() != types.size()) {
-                return ResponseEntity.badRequest().body(null);
-            }
+            // Enregistrer le fichier
+            String fileName = fileStorageService.storeFile(file);
 
-            List<PieceJustificativeDTO> pieces = new ArrayList<>();
+            // Créer l'URL du fichier
+            String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/api/files/")
+                    .path(fileName)
+                    .toUriString();
 
-            for (int i = 0; i < files.size(); i++) {
-                PieceJustificativeDTO pieceDTO = pieceJustificativeService.addPieceJustificative(
-                        collaborateurId, types.get(i), files.get(i));
-                pieces.add(pieceDTO);
-            }
+            // Créer la pièce justificative
+            PieceJustificativeDTO pieceJustificativeDTO = new PieceJustificativeDTO();
+            pieceJustificativeDTO.setNom(nom);
+            pieceJustificativeDTO.setType(type);
+            pieceJustificativeDTO.setDescription(description);
+            pieceJustificativeDTO.setCollaborateurId(collaborateurId);
+            pieceJustificativeDTO.setFichierNom(fileName);
+            pieceJustificativeDTO.setFichierUrl(fileDownloadUri);
+            pieceJustificativeDTO.setStatut("EN_ATTENTE"); // Statut par défaut
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(pieces);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
-    // Supprimer une pièce justificative
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePieceJustificative(@PathVariable Long id) {
-        try {
-            pieceJustificativeService.deletePieceJustificative(id);
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(pieceJustificativeService.create(pieceJustificativeDTO));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException("Erreur lors de la création de la pièce justificative: " + e.getMessage());
         }
     }
+
     @PutMapping("/{id}")
     public ResponseEntity<PieceJustificativeDTO> updatePieceJustificative(
             @PathVariable Long id,
-            @RequestParam("type") String type,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam("pieceJustificative") String pieceJustificativeJson) {
+
         try {
-            PieceJustificativeDTO pieceDTO = pieceJustificativeService.updatePieceJustificative(id, type, file);
-            return ResponseEntity.ok(pieceDTO);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            PieceJustificativeDTO existingPiece = pieceJustificativeService.getById(id);
+            // Mise à jour depuis le JSON
+            PieceJustificativeDTO updatedPiece = pieceJustificativeService.updateFromJson(id, pieceJustificativeJson);
+
+            // Si un nouveau fichier est fourni, le gérer
+            if (file != null && !file.isEmpty()) {
+                // Supprimer l'ancien fichier si nécessaire
+                if (existingPiece.getFichierNom() != null) {
+                    fileStorageService.deleteFile(existingPiece.getFichierNom());
+                }
+
+                // Stocker le nouveau fichier
+                String fileName = fileStorageService.storeFile(file);
+
+                // Mettre à jour l'URL du fichier
+                String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/api/files/")
+                        .path(fileName)
+                        .toUriString();
+
+                updatedPiece.setFichierNom(fileName);
+                updatedPiece.setFichierUrl(fileDownloadUri);
+
+                // Sauvegarder les changements
+                updatedPiece = pieceJustificativeService.update(id, updatedPiece);
+            }
+
+            return ResponseEntity.ok(updatedPiece);
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la mise à jour de la pièce justificative: " + e.getMessage());
         }
+    }
+
+    @PatchMapping("/{id}/statut")
+    public ResponseEntity<PieceJustificativeDTO> updateStatut(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> statutRequest) {
+
+        String nouveauStatut = statutRequest.get("statut");
+        if (nouveauStatut == null || nouveauStatut.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        PieceJustificativeDTO updated = pieceJustificativeService.updateStatut(id, nouveauStatut);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Boolean>> deletePieceJustificative(@PathVariable Long id) {
+        PieceJustificativeDTO piece = pieceJustificativeService.getById(id);
+
+        // Supprimer le fichier associé
+        if (piece.getFichierNom() != null) {
+            fileStorageService.deleteFile(piece.getFichierNom());
+        }
+
+        pieceJustificativeService.delete(id);
+
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("deleted", Boolean.TRUE);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/download/{fileName:.+}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
+        // Charger le fichier comme une ressource
+        Resource resource = fileStorageService.loadFileAsResource(fileName);
+
+        // Déterminer le type de contenu
+        String contentType = "application/octet-stream";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .body(resource);
     }
 }

@@ -1,13 +1,14 @@
 package com.example.personnel_management.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Getter
@@ -55,7 +56,20 @@ public class Collaborateur {
 
     @Column(nullable = false)
     private boolean active = true;
-    @OneToMany(mappedBy = "collaborateur", fetch = FetchType.EAGER)
-    private Set<PieceJustificative> piecesJustificatives;
+    @OneToMany(mappedBy = "collaborateur", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<PieceJustificative> piecesJustificatives = new ArrayList<>();
+
+    // Helper method to add a piece justificative
+    public void addPieceJustificative(PieceJustificative pieceJustificative) {
+        piecesJustificatives.add(pieceJustificative);
+        pieceJustificative.setCollaborateur(this);
+    }
+
+    // Helper method to remove a piece justificative
+    public void removePieceJustificative(PieceJustificative pieceJustificative) {
+        piecesJustificatives.remove(pieceJustificative);
+        pieceJustificative.setCollaborateur(null);
+    }
 
 }
