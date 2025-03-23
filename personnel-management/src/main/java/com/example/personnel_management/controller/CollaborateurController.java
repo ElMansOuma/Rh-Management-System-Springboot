@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/collaborateurs")
@@ -34,19 +36,26 @@ public class CollaborateurController {
 
     // Récupérer un collaborateur par ID
     @GetMapping("/{id}")
-    public ResponseEntity<CollaborateurDTO> getCollaborateurById(@PathVariable Long id) {
+    public ResponseEntity<Object> getCollaborateurById(@PathVariable Long id) {
         try {
             CollaborateurDTO collaborateurDTO = collaborateurService.getCollaborateurById(id);
             return ResponseEntity.ok(collaborateurDTO);
         } catch (Exception e) {
             logger.error("Erreur lors de la récupération du collaborateur id={}: {}", id, e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+
+            // Création d'une réponse d'erreur structurée
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "NOT_FOUND");
+            errorResponse.put("message", "Collaborateur non trouvé pour l'ID " + id);
+            errorResponse.put("error", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         }
     }
 
     // Créer un collaborateur
     @PostMapping
-    public ResponseEntity<?> createCollaborateur(@RequestBody Collaborateur collaborateur) {
+    public ResponseEntity<Object> createCollaborateur(@RequestBody Collaborateur collaborateur) {
         try {
             logger.info("Tentative de création d'un collaborateur: {}", collaborateur);
 
@@ -64,44 +73,86 @@ public class CollaborateurController {
             return ResponseEntity.status(HttpStatus.CREATED).body(collaborateurDTO);
         } catch (Exception e) {
             logger.error("Erreur lors de la création du collaborateur: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Erreur lors de la création du collaborateur: " + e.getMessage());
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "BAD_REQUEST");
+            errorResponse.put("message", "Erreur lors de la création du collaborateur");
+            errorResponse.put("error", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 
     // Mettre à jour un collaborateur par ID
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCollaborateur(@PathVariable Long id, @RequestBody Collaborateur collaborateur) {
+    public ResponseEntity<Object> updateCollaborateur(@PathVariable Long id, @RequestBody Collaborateur collaborateur) {
         try {
             logger.info("Tentative de mise à jour du collaborateur id={}", id);
             Collaborateur updatedCollaborateur = collaborateurService.updateCollaborateur(id, collaborateur);
+            CollaborateurDTO collaborateurDTO = modelMapper.map(updatedCollaborateur, CollaborateurDTO.class);
             logger.info("Collaborateur mis à jour avec succès: id={}", id);
-            return ResponseEntity.ok(updatedCollaborateur);
+            return ResponseEntity.ok(collaborateurDTO);
         } catch (Exception e) {
             logger.error("Erreur lors de la mise à jour du collaborateur id={}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Erreur lors de la mise à jour du collaborateur: " + e.getMessage());
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "BAD_REQUEST");
+            errorResponse.put("message", "Erreur lors de la mise à jour du collaborateur id=" + id);
+            errorResponse.put("error", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
 
     // Supprimer un collaborateur par ID
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteCollaborateur(@PathVariable Long id) {
+    public ResponseEntity<Object> deleteCollaborateur(@PathVariable Long id) {
         try {
             logger.info("Tentative de suppression du collaborateur id={}", id);
             collaborateurService.deleteCollaborateur(id);
             logger.info("Collaborateur supprimé avec succès: id={}", id);
-            return ResponseEntity.ok("Collaborateur supprimé avec succès.");
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "SUCCESS");
+            response.put("message", "Collaborateur supprimé avec succès");
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Erreur lors de la suppression du collaborateur id={}: {}", id, e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erreur lors de la suppression du collaborateur: " + e.getMessage());
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "ERROR");
+            errorResponse.put("message", "Erreur lors de la suppression du collaborateur id=" + id);
+            errorResponse.put("error", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
     @GetMapping("/cin/{cin}")
-    public ResponseEntity<Collaborateur> getCollaborateurByCin(@PathVariable String cin) {
-        return collaborateurRepository.findByCin(cin)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Object> getCollaborateurByCin(@PathVariable String cin) {
+        try {
+            return collaborateurRepository.findByCin(cin)
+                    .map(collaborateur -> {
+                        CollaborateurDTO collaborateurDTO = modelMapper.map(collaborateur, CollaborateurDTO.class);
+                        return ResponseEntity.ok((Object)collaborateurDTO);
+                    })
+                    .orElseGet(() -> {
+                        Map<String, Object> errorResponse = new HashMap<>();
+                        errorResponse.put("status", "NOT_FOUND");
+                        errorResponse.put("message", "Collaborateur non trouvé avec le CIN " + cin);
+
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+                    });
+        } catch (Exception e) {
+            logger.error("Erreur lors de la récupération du collaborateur par CIN={}: {}", cin, e.getMessage());
+
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "ERROR");
+            errorResponse.put("message", "Erreur lors de la récupération du collaborateur par CIN " + cin);
+            errorResponse.put("error", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 }
