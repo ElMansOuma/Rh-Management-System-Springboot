@@ -14,6 +14,7 @@ public class AuthUserResponse {
     private String nom;
     private String prenom;
     private String cin;
+    private Long collaborateurId;
     private boolean resetPassword;
     private String token;
 }

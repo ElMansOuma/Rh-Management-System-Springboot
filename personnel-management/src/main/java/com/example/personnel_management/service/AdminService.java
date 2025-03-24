@@ -35,7 +35,6 @@ public class AdminService implements UserDetailsService {
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
     }
-
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userRepository.findByEmail(username)
@@ -51,7 +50,7 @@ public class AdminService implements UserDetailsService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER)
+                .role(Role.ADMIN)
                 .build();
 
         userRepository.save(user);

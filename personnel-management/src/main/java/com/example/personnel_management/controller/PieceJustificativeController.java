@@ -1,8 +1,10 @@
 package com.example.personnel_management.controller;
 
 import com.example.personnel_management.DTO.PieceJustificativeDTO;
+import com.example.personnel_management.model.Collaborateur;
 import com.example.personnel_management.service.PieceJustificativeService;
 import com.example.personnel_management.service.FileStorageService;
+import com.example.personnel_management.repository.CollaborateurRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -28,12 +30,15 @@ public class PieceJustificativeController {
 
     private final PieceJustificativeService pieceJustificativeService;
     private final FileStorageService fileStorageService;
+    private final CollaborateurRepository collaborateurRepository;
 
     @Autowired
     public PieceJustificativeController(PieceJustificativeService pieceJustificativeService,
-                                        FileStorageService fileStorageService) {
+                                        FileStorageService fileStorageService,
+                                        CollaborateurRepository collaborateurRepository) {
         this.pieceJustificativeService = pieceJustificativeService;
         this.fileStorageService = fileStorageService;
+        this.collaborateurRepository = collaborateurRepository;
     }
 
     @GetMapping
@@ -68,6 +73,31 @@ public class PieceJustificativeController {
             return ResponseEntity.ok(pieces);
         } catch (Exception e) {
             logger.error("Erreur lors de la récupération des pièces: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/collaborateur/cin/{cin}")
+    public ResponseEntity<List<PieceJustificativeDTO>> getByCollaborateurCin(@PathVariable String cin) {
+        logger.info("Requête reçue pour les pièces justificatives du collaborateur avec CIN: {}", cin);
+
+        try {
+            // Rechercher d'abord le collaborateur par CIN
+            Collaborateur collaborateur = collaborateurRepository.findByCin(cin)
+                    .orElse(null);
+
+            if (collaborateur == null) {
+                logger.warn("Aucun collaborateur trouvé avec le CIN: {}", cin);
+                return ResponseEntity.notFound().build();
+            }
+
+            // Récupérer les pièces justificatives du collaborateur
+            List<PieceJustificativeDTO> pieces = pieceJustificativeService.getAllByCollaborateurId(collaborateur.getId());
+            logger.info("Trouvé {} pièces pour le collaborateur avec CIN: {}", pieces.size(), cin);
+
+            return ResponseEntity.ok(pieces);
+        } catch (Exception e) {
+            logger.error("Erreur lors de la récupération des pièces par CIN: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

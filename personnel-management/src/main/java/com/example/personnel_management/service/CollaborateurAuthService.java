@@ -53,7 +53,7 @@ public class CollaborateurAuthService {
         UserDetails userDetails = User.builder()
                 .username(collaborateur.getCin())
                 .password(collaborateur.getPassword())
-                .authorities("ROLE_COLLABORATEUR")
+                .authorities("ROLE_USER")
                 .build();
 
         // Générer le token JWT en utilisant l'interface UserDetails
