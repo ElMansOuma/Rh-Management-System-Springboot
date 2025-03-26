@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -171,5 +172,16 @@ public class PieceJustificativeService {
         // Ne pas définir le collaborateur ici, il sera défini dans la méthode create
 
         return entity;
+    }
+    public List<PieceJustificativeDTO> getAllByCollaborateurCin(String cin) {
+        return pieceJustificativeRepository.findByCollaborateurCin(cin).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<PieceJustificativeDTO> getAllByCollaborateurCinAndStatut(String cin, String statut) {
+        return pieceJustificativeRepository.findByCollaborateurCinAndStatut(cin, statut).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 }

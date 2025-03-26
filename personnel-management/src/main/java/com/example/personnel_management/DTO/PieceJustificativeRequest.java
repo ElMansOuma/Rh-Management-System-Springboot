@@ -1,6 +1,8 @@
 // PieceJustificativeRequest.java
 package com.example.personnel_management.DTO;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.persistence.JoinColumn;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,4 +18,5 @@ public class PieceJustificativeRequest {
     private String description;
     private String type;
     private Long collaborateurId;
+    private String cin;
 }

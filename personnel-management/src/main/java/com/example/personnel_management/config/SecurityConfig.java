@@ -56,6 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll() // Les URLs d'authentification sont publiques
                         .requestMatchers("/h2-console/**").permitAll() // Console H2 publique
                         .requestMatchers("/uploads/**").permitAll() // Permettre l'accès aux fichiers téléchargés
+                        .requestMatchers("/api/pointage/**").authenticated() // Added authentication for pointage endpoint
                         .anyRequest().authenticated() // Toutes les autres requêtes nécessitent une authentification
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Mode sans état (stateless) car nous utilisons JWT
