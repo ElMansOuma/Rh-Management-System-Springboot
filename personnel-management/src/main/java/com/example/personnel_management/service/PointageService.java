@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -214,5 +215,33 @@ public class PointageService {
                 .timestamp(LocalDateTime.now())
                 .collaborateur(collaborateur)
                 .build();
+    }
+    public List<PointageDTO> getUserPointages(String cin, String month, Integer year) {
+        // Récupérer le collaborateur
+        Collaborateur collaborateur = findCollaborateurByCin(cin);
+
+        // Définir la période de recherche
+        LocalDateTime start, end;
+        if (month != null && year != null) {
+            YearMonth yearMonth = YearMonth.parse(year + "-" + month);
+            start = yearMonth.atDay(1).atStartOfDay();
+            end = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+        } else {
+            // Par défaut, recherche pour le mois en cours
+            LocalDate now = LocalDate.now();
+            start = now.withDayOfMonth(1).atStartOfDay();
+            end = now.withDayOfMonth(now.lengthOfMonth()).atTime(LocalTime.MAX);
+        }
+
+        // Récupérer les pointages
+        List<Pointage> pointages = pointageRepository
+                .findByCollaborateurAndTimestampBetweenOrderByTimestampAsc(
+                        collaborateur, start, end
+                );
+
+        // Convertir en DTOs
+        return pointages.stream()
+                .map(pointage -> modelMapper.map(pointage, PointageDTO.class))
+                .collect(Collectors.toList());
     }
 }

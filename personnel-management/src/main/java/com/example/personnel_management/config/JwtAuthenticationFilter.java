@@ -1,98 +1,115 @@
 package com.example.personnel_management.config;
 
+import com.example.personnel_management.service.CollaborateurUserDetailsService;
+import com.example.personnel_management.service.AdminUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Filtre d'authentification JWT
- * Ce filtre intercepte chaque requête pour vérifier le token JWT
- */
-@Component // Indique à Spring que c'est un composant à instancier automatiquement
+@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtUtil jwtUtil;
     private final ApplicationContext applicationContext;
-    private UserDetailsService userDetailsService;
+    private CollaborateurUserDetailsService collaborateurUserDetailsService;
+    private AdminUserDetailsService adminUserDetailsService;
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, ApplicationContext applicationContext) {
-        this.jwtUtil = jwtUtil; // Utilitaire pour manipuler les tokens JWT
-        this.applicationContext = applicationContext; // Contexte Spring pour résoudre les dépendances
+        this.jwtUtil = jwtUtil;
+        this.applicationContext = applicationContext;
     }
 
-    /**
-     * Méthode pour obtenir le service UserDetailsService de manière paresseuse (lazy)
-     * Résout le problème de dépendance circulaire
-     */
-    private UserDetailsService getUserDetailsService() {
-        if (userDetailsService == null) {
-            userDetailsService = applicationContext.getBean(UserDetailsService.class);
+    private CollaborateurUserDetailsService getCollaborateurUserDetailsService() {
+        if (collaborateurUserDetailsService == null) {
+            collaborateurUserDetailsService = applicationContext.getBean(CollaborateurUserDetailsService.class);
         }
-        return userDetailsService;
+        return collaborateurUserDetailsService;
     }
 
-    /**
-     * Méthode principale du filtre exécutée pour chaque requête
-     * Vérifie le token JWT et authentifie l'utilisateur si le token est valide
-     */
+    private AdminUserDetailsService getAdminUserDetailsService() {
+        if (adminUserDetailsService == null) {
+            adminUserDetailsService = applicationContext.getBean(AdminUserDetailsService.class);
+        }
+        return adminUserDetailsService;
+    }
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization"); // Récupère l'en-tête Authorization
+        final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String userEmail;
+        final String userIdentifier;
 
-        // Si l'en-tête n'existe pas ou n'est pas au format Bearer, passe au filtre suivant
+        // Vérification de l'en-tête Authorization
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extrait le token JWT (enlève "Bearer ")
+        // Extraction du token JWT
         jwt = authHeader.substring(7);
+
         try {
-            // Extrait l'email de l'utilisateur du token
-            userEmail = jwtUtil.extractUsername(jwt);
+            // Extraction de l'identifiant utilisateur (CIN ou email)
+            userIdentifier = jwtUtil.extractUsername(jwt);
 
-            // Si l'email est présent et que l'utilisateur n'est pas déjà authentifié
-            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // Charge les détails de l'utilisateur depuis la base de données
-                UserDetails userDetails = getUserDetailsService().loadUserByUsername(userEmail);
+            // Authentification si l'identifiant est présent et non déjà authentifié
+            if (userIdentifier != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = null;
 
-                // Vérifie si le token est valide pour cet utilisateur
+                // Tenter de charger comme collaborateur
+                try {
+                    userDetails = getCollaborateurUserDetailsService().loadUserByUsername(userIdentifier);
+                } catch (UsernameNotFoundException collaborateurException) {
+                    // Si pas trouvé comme collaborateur, essayer comme admin
+                    try {
+                        userDetails = getAdminUserDetailsService().loadUserByUsername(userIdentifier);
+                    } catch (UsernameNotFoundException adminException) {
+                        logger.error("Utilisateur non trouvé : {}", userIdentifier);
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.getWriter().write("Utilisateur non authentifié");
+                        return;
+                    }
+                }
+
+                // Validation du token
                 if (jwtUtil.validateToken(jwt, userDetails)) {
-                    // Crée un objet d'authentification avec les droits de l'utilisateur
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
                                     null,
                                     userDetails.getAuthorities()
                             );
-                    // Ajoute des détails sur la requête
+
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    // Enregistre l'authentification dans le contexte de sécurité
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception e) {
-            logger.error("Impossible de définir l'authentification dans le contexte de sécurité", e);
+            logger.error("Erreur lors de l'authentification JWT : {}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Authentification invalide");
+            return;
         }
 
-        // Continue la chaîne de filtres
         filterChain.doFilter(request, response);
     }
 }

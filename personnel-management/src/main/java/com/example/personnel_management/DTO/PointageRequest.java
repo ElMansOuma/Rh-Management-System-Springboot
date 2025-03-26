@@ -11,5 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class PointageRequest {
+    private String cin;
     private Pointage.PointageType type;
 }

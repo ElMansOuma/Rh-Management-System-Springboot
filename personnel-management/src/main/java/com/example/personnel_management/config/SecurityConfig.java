@@ -1,5 +1,7 @@
 package com.example.personnel_management.config;
 
+import com.example.personnel_management.service.AdminUserDetailsService;
+import com.example.personnel_management.service.CollaborateurUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -12,7 +14,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -23,26 +27,22 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
-/**
- * Configuration de sécurité pour l'application
- * Cette classe configure les règles d'authentification et d'autorisation
- */
-@Configuration //classe de configuration
-@EnableWebSecurity // Active la sécurité web
-@EnableMethodSecurity // Permet la sécurité au niveau des méthodes (@PreAuthorize, etc.)
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
-    private final UserDetailsService userDetailsService;
+    private final CollaborateurUserDetailsService collaborateurUserDetailsService;
+    private final AdminUserDetailsService adminUserDetailsService;
 
-    // Utilisation de @Lazy pour résoudre le problème de dépendance circulaire
-    public SecurityConfig(@Lazy UserDetailsService userDetailsService) {
-        this.userDetailsService = userDetailsService;
+    public SecurityConfig(
+            @Lazy CollaborateurUserDetailsService collaborateurUserDetailsService,
+            @Lazy AdminUserDetailsService adminUserDetailsService
+    ) {
+        this.collaborateurUserDetailsService = collaborateurUserDetailsService;
+        this.adminUserDetailsService = adminUserDetailsService;
     }
 
-    /**
-     * Configure la chaîne de filtres de sécurité
-     * Définit les règles d'accès aux différentes URLs
-     */
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -50,72 +50,72 @@ public class SecurityConfig {
             AuthenticationProvider authenticationProvider) throws Exception {
 
         http
-                .csrf(AbstractHttpConfigurer::disable) // Désactive la protection CSRF car nous utilisons des JWT
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Configure CORS
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Les URLs d'authentification sont publiques
-                        .requestMatchers("/h2-console/**").permitAll() // Console H2 publique
-                        .requestMatchers("/uploads/**").permitAll() // Permettre l'accès aux fichiers téléchargés
-                        .requestMatchers("/api/pointage/**").authenticated() // Added authentication for pointage endpoint
-                        .anyRequest().authenticated() // Toutes les autres requêtes nécessitent une authentification
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/api/pointage/**").hasRole("USER")
+                        .requestMatchers("/api/pointage/today/**").hasRole("USER")
+                        .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Mode sans état (stateless) car nous utilisons JWT
-                .authenticationProvider(authenticationProvider) // Notre fournisseur d'authentification
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class) // Ajoute notre filtre JWT avant le filtre d'authentification standard
-                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable())); // Pour accéder à la console H2
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(authenticationProvider)
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
 
         return http.build();
     }
 
-    /**
-     * Configuration CORS pour permettre les requêtes du frontend
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Autorise les requêtes depuis le frontend local
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH")); // Méthodes HTTP autorisées
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "accept",
-                "Origin",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
-        )); // En-têtes autorisés élargis
-        configuration.setAllowCredentials(true); // Autorise l'envoi de cookies
-        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition")); // En-têtes exposés pour téléchargements
+                "Authorization", "Content-Type", "X-Requested-With", "accept", "Origin",
+                "Access-Control-Request-Method", "Access-Control-Request-Headers"
+        ));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // Applique cette configuration à toutes les URLs
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
-    /**
-     * Configure le fournisseur d'authentification
-     * Utilise notre service de détails utilisateur et notre encodeur de mot de passe
-     */
     @Bean
     public AuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService); // Service qui charge les informations utilisateur
-        authProvider.setPasswordEncoder(passwordEncoder); // Encodeur pour vérifier les mots de passe
+        // You'll need to modify this part to support multiple user details services
+        authProvider.setUserDetailsService(getCompositeUserDetailsService());
+        authProvider.setPasswordEncoder(passwordEncoder);
         return authProvider;
     }
 
-    /**
-     * Gestionnaire d'authentification de Spring Security
-     */
+    // Custom method to handle multiple user details services
+    private UserDetailsService getCompositeUserDetailsService() {
+        return new UserDetailsService() {
+            @Override
+            public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+                try {
+                    // First try Collaborateur
+                    return collaborateurUserDetailsService.loadUserByUsername(username);
+                } catch (UsernameNotFoundException e) {
+                    // Then try Admin
+                    return adminUserDetailsService.loadUserByUsername(username);
+                }
+            }
+        };
+    }
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    /**
-     * Encodeur de mot de passe pour stocker les mots de passe de manière sécurisée
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // Utilise l'algorithme BCrypt pour hasher les mots de passe
+        return new BCryptPasswordEncoder();
     }
 }
