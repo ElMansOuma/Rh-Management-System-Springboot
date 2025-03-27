@@ -1,7 +1,7 @@
 package com.example.personnel_management.config;
 
-import com.example.personnel_management.service.CollaborateurUserDetailsService;
 import com.example.personnel_management.service.AdminUserDetailsService;
+import com.example.personnel_management.service.CollaborateurUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -34,14 +35,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.applicationContext = applicationContext;
     }
 
-    private CollaborateurUserDetailsService getCollaborateurUserDetailsService() {
+    private synchronized CollaborateurUserDetailsService getCollaborateurUserDetailsService() {
         if (collaborateurUserDetailsService == null) {
             collaborateurUserDetailsService = applicationContext.getBean(CollaborateurUserDetailsService.class);
         }
         return collaborateurUserDetailsService;
     }
 
-    private AdminUserDetailsService getAdminUserDetailsService() {
+    private synchronized AdminUserDetailsService getAdminUserDetailsService() {
         if (adminUserDetailsService == null) {
             adminUserDetailsService = applicationContext.getBean(AdminUserDetailsService.class);
         }
@@ -58,39 +59,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String userIdentifier;
 
-        // Vérification de l'en-tête Authorization
+        // Check Authorization header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extraction du token JWT
+        // Extract JWT token
         jwt = authHeader.substring(7);
 
         try {
-            // Extraction de l'identifiant utilisateur (CIN ou email)
+            // Extract user identifier (username or email)
             userIdentifier = jwtUtil.extractUsername(jwt);
 
-            // Authentification si l'identifiant est présent et non déjà authentifié
+            // Extract roles from token
+            List<String> roles = jwtUtil.extractRoles(jwt);
+            logger.info("Extracted roles: {}", roles);
+
+            // Authenticate if identifier is present and not already authenticated
             if (userIdentifier != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = null;
 
-                // Tenter de charger comme collaborateur
+                // Attempt to load as collaborateur or admin
                 try {
                     userDetails = getCollaborateurUserDetailsService().loadUserByUsername(userIdentifier);
                 } catch (UsernameNotFoundException collaborateurException) {
-                    // Si pas trouvé comme collaborateur, essayer comme admin
                     try {
                         userDetails = getAdminUserDetailsService().loadUserByUsername(userIdentifier);
                     } catch (UsernameNotFoundException adminException) {
-                        logger.error("Utilisateur non trouvé : {}", userIdentifier);
+                        logger.error("User not found: {}", userIdentifier);
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        response.getWriter().write("Utilisateur non authentifié");
+                        response.getWriter().write("Authentication failed");
                         return;
                     }
                 }
 
-                // Validation du token
+                // Validate token
                 if (jwtUtil.validateToken(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
@@ -101,12 +105,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                    logger.info("Authentication successful for user: {}", userIdentifier);
+                    logger.info("User Authorities: {}", userDetails.getAuthorities());
                 }
             }
         } catch (Exception e) {
-            logger.error("Erreur lors de l'authentification JWT : {}", e.getMessage());
+            logger.error("JWT Authentication error: {}", e.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Authentification invalide");
+            response.getWriter().write("Invalid authentication");
             return;
         }
 

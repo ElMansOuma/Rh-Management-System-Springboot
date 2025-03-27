@@ -3,11 +3,14 @@ package com.example.personnel_management.service;
 import com.example.personnel_management.model.Admin;
 import com.example.personnel_management.repository.AdminRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +26,7 @@ public class AdminUserDetailsService implements UserDetailsService {
         return User
                 .withUsername(admin.getEmail())
                 .password(admin.getPassword())
-                .roles("ADMIN")
+                .roles("ADMIN") // Use .roles() instead of .authorities()
                 .build();
     }
 }

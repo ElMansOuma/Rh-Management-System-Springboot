@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -244,4 +245,55 @@ public class PointageService {
                 .map(pointage -> modelMapper.map(pointage, PointageDTO.class))
                 .collect(Collectors.toList());
     }
+    @Transactional(readOnly = true)
+    public List<PointageDTO> getAllPointagesForAdmin(String month, Integer year) {
+        // Définir la période de recherche
+        LocalDateTime start, end;
+
+        // Validation des paramètres
+        if (month != null && (month.length() < 1 || month.length() > 2)) {
+            throw new IllegalArgumentException("Le mois doit être au format 1-2 chiffres");
+        }
+
+        if (year != null && (year < 2000 || year > 2100)) {
+            throw new IllegalArgumentException("Année invalide");
+        }
+
+        try {
+            // Si mois et année sont fournis
+            if (month != null && year != null) {
+                // Normaliser le mois en deux chiffres
+                String formattedMonth = month.length() == 1 ? "0" + month : month;
+
+                YearMonth yearMonth = YearMonth.parse(year + "-" + formattedMonth);
+                start = yearMonth.atDay(1).atStartOfDay();
+                end = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+            } else {
+                // Par défaut, recherche pour le mois en cours
+                LocalDate now = LocalDate.now();
+                start = now.withDayOfMonth(1).atStartOfDay();
+                end = now.withDayOfMonth(now.lengthOfMonth()).atTime(LocalTime.MAX);
+            }
+
+            // Récupérer tous les pointages
+            List<Pointage> pointages = pointageRepository
+                    .findAllByTimestampBetweenOrderByTimestampDesc(start, end);
+
+            // Convertir en DTOs avec informations du collaborateur
+            return pointages.stream()
+                    .map(pointage -> {
+                        PointageDTO dto = modelMapper.map(pointage, PointageDTO.class);
+                        dto.setCin(pointage.getCollaborateur().getCin());
+                        dto.setNom(pointage.getCollaborateur().getNom());
+                        dto.setPrenom(pointage.getCollaborateur().getPrenom());
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Format de date invalide", e);
+        }
+    }
+
+
 }

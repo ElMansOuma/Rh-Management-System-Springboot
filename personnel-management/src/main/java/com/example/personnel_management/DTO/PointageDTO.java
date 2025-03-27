@@ -16,4 +16,10 @@ public class PointageDTO {
     private Long id;
     private Pointage.PointageType type;
     private LocalDateTime timestamp;
+
+    private String cin;
+    private String nom;
+    private String prenom;
+
+
 }

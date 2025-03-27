@@ -14,7 +14,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,29 +25,30 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
     private final CollaborateurUserDetailsService collaborateurUserDetailsService;
     private final AdminUserDetailsService adminUserDetailsService;
+    private final JwtAuthenticationFilter jwtAuthFilter;
 
     public SecurityConfig(
             @Lazy CollaborateurUserDetailsService collaborateurUserDetailsService,
-            @Lazy AdminUserDetailsService adminUserDetailsService
+            @Lazy AdminUserDetailsService adminUserDetailsService,
+            JwtAuthenticationFilter jwtAuthFilter
     ) {
         this.collaborateurUserDetailsService = collaborateurUserDetailsService;
         this.adminUserDetailsService = adminUserDetailsService;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthFilter,
-            AuthenticationProvider authenticationProvider) throws Exception {
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -56,12 +56,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
-                        .requestMatchers("/api/pointage/**").hasRole("USER")
-                        .requestMatchers("/api/pointage/today/**").hasRole("USER")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/pointage/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/pointage/today").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/pointage/user").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
 
@@ -71,7 +72,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization", "Content-Type", "X-Requested-With", "accept", "Origin",
@@ -79,32 +80,28 @@ public class SecurityConfig {
         ));
         configuration.setAllowCredentials(true);
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
+    public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        // You'll need to modify this part to support multiple user details services
         authProvider.setUserDetailsService(getCompositeUserDetailsService());
-        authProvider.setPasswordEncoder(passwordEncoder);
+        authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
 
-    // Custom method to handle multiple user details services
     private UserDetailsService getCompositeUserDetailsService() {
-        return new UserDetailsService() {
-            @Override
-            public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-                try {
-                    // First try Collaborateur
-                    return collaborateurUserDetailsService.loadUserByUsername(username);
-                } catch (UsernameNotFoundException e) {
-                    // Then try Admin
-                    return adminUserDetailsService.loadUserByUsername(username);
-                }
+        return username -> {
+            try {
+                // First try to authenticate as a collaborateur
+                return collaborateurUserDetailsService.loadUserByUsername(username);
+            } catch (UsernameNotFoundException collaborateurException) {
+                // If not a collaborateur, try to authenticate as an admin
+                return adminUserDetailsService.loadUserByUsername(username);
             }
         };
     }

@@ -10,6 +10,7 @@ import com.example.personnel_management.repository.AdminRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -65,7 +66,9 @@ public class AdminService implements UserDetailsService {
                 .build();
     }
 
+
     public AuthAdminResponse login(LoginAdminRequest request) {
+        // Authenticate first
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -76,7 +79,19 @@ public class AdminService implements UserDetailsService {
         Admin user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("Utilisateur non trouvé"));
 
-        String token = jwtUtil.generateToken(user);
+        // Additional admin role validation
+        if (user.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Accès réservé aux administrateurs");
+        }
+
+        // Create UserDetails with ADMIN role
+        UserDetails userDetails = User
+                .withUsername(user.getEmail())
+                .password(user.getPassword())
+                .authorities("ROLE_ADMIN") // Full role name with ROLE_ prefix
+                .build();
+
+        String token = jwtUtil.generateToken(userDetails);
 
         return AuthAdminResponse.builder()
                 .token(token)

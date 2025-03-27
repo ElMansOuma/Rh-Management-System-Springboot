@@ -34,4 +34,10 @@ public interface PointageRepository extends JpaRepository<Pointage, Long> {
             LocalDateTime start,
             LocalDateTime end
     );
+    // Ajouter cette méthode dans PointageRepository
+    @Query("SELECT p FROM Pointage p WHERE p.timestamp BETWEEN :start AND :end ORDER BY p.timestamp DESC")
+    List<Pointage> findAllByTimestampBetweenOrderByTimestampDesc(
+            LocalDateTime start,
+            LocalDateTime end
+    );
 }

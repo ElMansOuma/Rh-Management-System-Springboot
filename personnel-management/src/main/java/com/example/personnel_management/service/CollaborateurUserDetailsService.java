@@ -23,7 +23,7 @@ public class CollaborateurUserDetailsService implements UserDetailsService {
         return User
                 .withUsername(collaborateur.getCin())
                 .password(collaborateur.getPassword())
-                .roles("USER")
+                .authorities("ROLE_ADMIN") // Use .authorities() with full role name
                 .build();
     }
 
